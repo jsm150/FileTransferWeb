@@ -9,16 +9,27 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MediatR" Version="14.0.0" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="src/FileTransferWeb.Storage.Application/FileTransferWeb.Storage.Application.csproj" />
+    <ProjectReference Include="src/FileTransferWeb.Transfer.Application/FileTransferWeb.Transfer.Application.csproj" />
+    <ProjectReference Include="src/FileTransferWeb.Storage.Infrastructure/FileTransferWeb.Storage.Infrastructure.csproj" />
+    <ProjectReference Include="src/FileTransferWeb.Transfer.Infrastructure/FileTransferWeb.Transfer.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Compile Remove="tests/**/*.cs" />
     <Compile Remove="tests\**" />
+    <Compile Remove="src/**/*.cs" />
+    <Compile Remove="src\**" />
     <Content Remove="tests\**" />
+    <Content Remove="src\**" />
     <EmbeddedResource Remove="tests\**" />
+    <EmbeddedResource Remove="src\**" />
     <None Remove="tests\**" />
+    <None Remove="src\**" />
   </ItemGroup>
 
 </Project>

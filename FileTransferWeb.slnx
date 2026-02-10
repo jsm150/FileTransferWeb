@@ -1,4 +1,15 @@
 <Solution>
+  <Folder Name="/storage/">
+    <Project Path="src/FileTransferWeb.Storage.Application/FileTransferWeb.Storage.Application.csproj" />
+    <Project Path="src/FileTransferWeb.Storage.Domain/FileTransferWeb.Storage.Domain.csproj" />
+    <Project Path="src/FileTransferWeb.Storage.Infrastructure/FileTransferWeb.Storage.Infrastructure.csproj" />
+    <Project Path="tests/FileTransferWeb.Storage.Application.Tests/FileTransferWeb.Storage.Application.Tests.csproj" />
+    <Project Path="tests/FileTransferWeb.Storage.Domain.Tests/FileTransferWeb.Storage.Domain.Tests.csproj" />
+    <Project Path="tests/FileTransferWeb.Storage.Infrastructure.Tests/FileTransferWeb.Storage.Infrastructure.Tests.csproj" />
+  </Folder>
   <Project Path="FileTransferWeb.csproj" />
-  <Project Path="tests/FileTransferWeb.Tests/FileTransferWeb.Tests.csproj" />
+  <Project Path="src/FileTransferWeb.Domain.Shared/FileTransferWeb.Domain.Shared.csproj" />
+  <Project Path="src/FileTransferWeb.Transfer.Application/FileTransferWeb.Transfer.Application.csproj" />
+  <Project Path="src/FileTransferWeb.Transfer.Domain/FileTransferWeb.Transfer.Domain.csproj" />
+  <Project Path="src/FileTransferWeb.Transfer.Infrastructure/FileTransferWeb.Transfer.Infrastructure.csproj" />
 </Solution>
