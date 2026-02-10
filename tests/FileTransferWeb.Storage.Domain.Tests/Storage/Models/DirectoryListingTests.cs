@@ -1,4 +1,4 @@
-using FileTransferWeb.Domain.Shared;
+using FileTransferWeb.Storage.Domain.Exceptions;
 using FileTransferWeb.Storage.Domain.Models;
 using FileTransferWeb.Storage.Domain.Policies;
 using Xunit;
@@ -10,10 +10,22 @@ public class DirectoryListingTests
     [Fact(DisplayName = "생성자는 정책을 반드시 받아야 한다")]
     public void Constructor_Throws_WhenPolicyIsNull()
     {
-        var exception = Assert.Throws<ArgumentNullException>(
+        var exception = Assert.Throws<StorageDomainException>(
             () => new DirectoryListing(null!, ["photos"]));
 
-        Assert.Equal("policy", exception.ParamName);
+        Assert.Equal("디렉터리 정책이 비어 있습니다.", exception.Message);
+    }
+
+    [Fact(DisplayName = "생성자는 디렉터리 목록을 반드시 받아야 한다")]
+    public void Constructor_Throws_WhenDirectoryNamesIsNull()
+    {
+        var rootPath = Path.Combine(Path.GetTempPath(), $"ftw-{Guid.NewGuid():N}");
+        var policy = new StoragePathPolicy(rootPath, "");
+
+        var exception = Assert.Throws<StorageDomainException>(
+            () => new DirectoryListing(policy, null!));
+
+        Assert.Equal("디렉터리 목록이 비어 있습니다.", exception.Message);
     }
 
     [Fact(DisplayName = "생성자는 디렉터리 이름을 대소문자 무시 오름차순으로 정렬한다")]
@@ -46,7 +58,7 @@ public class DirectoryListingTests
         var rootPath = Path.Combine(Path.GetTempPath(), $"ftw-{Guid.NewGuid():N}");
         var policy = new StoragePathPolicy(rootPath, "");
 
-        var exception = Assert.Throws<DomainRuleViolationException>(
+        var exception = Assert.Throws<StorageDomainException>(
             () => new DirectoryListing(policy, ["ok", " "]));
 
         Assert.Contains("디렉터리 이름이 비어 있습니다.", exception.Message);

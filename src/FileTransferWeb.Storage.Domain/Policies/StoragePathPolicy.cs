@@ -1,4 +1,4 @@
-using FileTransferWeb.Domain.Shared;
+using FileTransferWeb.Storage.Domain.Exceptions;
 
 namespace FileTransferWeb.Storage.Domain.Policies;
 
@@ -12,35 +12,46 @@ public sealed class StoragePathPolicy
     {
         ValidateUploadRoot(uploadRoot);
 
-        var fullRootPath = Path.GetFullPath(uploadRoot);
-        var normalizedRelativePath = NormalizeRelativePath(requestedRelativePath);
-
-        if (Path.IsPathRooted(normalizedRelativePath))
+        try
         {
-            throw new DomainRuleViolationException("상대 경로만 허용됩니다.");
+            var fullRootPath = Path.GetFullPath(uploadRoot);
+            var normalizedRelativePath = NormalizeRelativePath(requestedRelativePath);
+
+            if (Path.IsPathRooted(normalizedRelativePath))
+            {
+                throw new StorageDomainException("상대 경로만 허용됩니다.");
+            }
+
+            var combinedPath = Path.Combine(fullRootPath, normalizedRelativePath);
+            FullCurrentPath = Path.GetFullPath(combinedPath);
+
+            if (IsOutsideRoot(fullRootPath, FullCurrentPath))
+            {
+                throw new StorageDomainException("업로드 루트 경로 밖으로 접근할 수 없습니다.");
+            }
+
+            var relativePath = Path.GetRelativePath(fullRootPath, FullCurrentPath);
+            if (string.Equals(relativePath, ".", StringComparison.Ordinal))
+            {
+                CurrentRelativePath = string.Empty;
+            }
+            else
+            {
+                CurrentRelativePath = relativePath
+                    .Replace(Path.DirectorySeparatorChar, '/')
+                    .Replace(Path.AltDirectorySeparatorChar, '/');
+            }
+
+            ParentRelativePath = BuildParentRelativePath(CurrentRelativePath);
         }
-
-        var combinedPath = Path.Combine(fullRootPath, normalizedRelativePath);
-        FullCurrentPath = Path.GetFullPath(combinedPath);
-
-        if (IsOutsideRoot(fullRootPath, FullCurrentPath))
+        catch (StorageDomainException)
         {
-            throw new DomainRuleViolationException("업로드 루트 경로 밖으로 접근할 수 없습니다.");
+            throw;
         }
-
-        var relativePath = Path.GetRelativePath(fullRootPath, FullCurrentPath);
-        if (string.Equals(relativePath, ".", StringComparison.Ordinal))
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
         {
-            CurrentRelativePath = string.Empty;
+            throw new StorageDomainException("경로 형식이 올바르지 않습니다.");
         }
-        else
-        {
-            CurrentRelativePath = relativePath
-                .Replace(Path.DirectorySeparatorChar, '/')
-                .Replace(Path.AltDirectorySeparatorChar, '/');
-        }
-
-        ParentRelativePath = BuildParentRelativePath(CurrentRelativePath);
     }
 
     private static string NormalizeRelativePath(string? relativePath)
@@ -55,7 +66,7 @@ public sealed class StoragePathPolicy
 
         if (Path.IsPathRooted(normalizedPath))
         {
-            throw new DomainRuleViolationException("상대 경로만 허용됩니다.");
+            throw new StorageDomainException("상대 경로만 허용됩니다.");
         }
 
         normalizedPath = normalizedPath.TrimStart(Path.DirectorySeparatorChar);
@@ -72,7 +83,7 @@ public sealed class StoragePathPolicy
     {
         if (string.IsNullOrWhiteSpace(uploadRoot))
         {
-            throw new DomainRuleViolationException("업로드 루트 경로가 비어 있습니다.");
+            throw new StorageDomainException("업로드 루트 경로가 비어 있습니다.");
         }
     }
 

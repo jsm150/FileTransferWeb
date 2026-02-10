@@ -1,4 +1,4 @@
-using FileTransferWeb.Domain.Shared;
+using FileTransferWeb.Storage.Domain.Exceptions;
 using FileTransferWeb.Storage.Domain.Policies;
 using Xunit;
 
@@ -38,7 +38,7 @@ public class StoragePathPolicyTests
         var rootPath = Path.Combine(Path.GetTempPath(), $"ftw-{Guid.NewGuid():N}");
         var escapingRelativePath = Path.Combine("..", "outside");
 
-        var exception = Assert.Throws<DomainRuleViolationException>(
+        var exception = Assert.Throws<StorageDomainException>(
             () => new StoragePathPolicy(rootPath, escapingRelativePath));
 
         Assert.Contains("루트 경로 밖", exception.Message);
@@ -50,9 +50,21 @@ public class StoragePathPolicyTests
         var rootPath = Path.Combine(Path.GetTempPath(), $"ftw-{Guid.NewGuid():N}");
         var rootedPath = Path.GetPathRoot(rootPath)!;
 
-        var exception = Assert.Throws<DomainRuleViolationException>(
+        var exception = Assert.Throws<StorageDomainException>(
             () => new StoragePathPolicy(rootPath, rootedPath));
 
         Assert.Contains("상대 경로", exception.Message);
+    }
+
+    [Fact(DisplayName = "경로 형식이 잘못되면 도메인 예외로 변환한다")]
+    public void Constructor_ThrowsDomainException_WhenPathFormatIsInvalid()
+    {
+        var rootPath = Path.Combine(Path.GetTempPath(), $"ftw-{Guid.NewGuid():N}");
+        var invalidRelativePath = "invalid\0path";
+
+        var exception = Assert.Throws<StorageDomainException>(
+            () => new StoragePathPolicy(rootPath, invalidRelativePath));
+
+        Assert.Equal("경로 형식이 올바르지 않습니다.", exception.Message);
     }
 }

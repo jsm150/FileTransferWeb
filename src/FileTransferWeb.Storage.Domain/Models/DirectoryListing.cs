@@ -1,4 +1,4 @@
-using FileTransferWeb.Domain.Shared;
+using FileTransferWeb.Storage.Domain.Exceptions;
 using FileTransferWeb.Storage.Domain.Policies;
 
 namespace FileTransferWeb.Storage.Domain.Models;
@@ -11,8 +11,15 @@ public sealed class DirectoryListing
 
     public DirectoryListing(StoragePathPolicy policy, IReadOnlyList<string> directoryNames)
     {
-        ArgumentNullException.ThrowIfNull(policy);
-        ArgumentNullException.ThrowIfNull(directoryNames);
+        if (policy is null)
+        {
+            throw new StorageDomainException("디렉터리 정책이 비어 있습니다.");
+        }
+
+        if (directoryNames is null)
+        {
+            throw new StorageDomainException("디렉터리 목록이 비어 있습니다.");
+        }
 
         var orderedNames = directoryNames
             .Select(ValidateDirectoryName)
@@ -30,7 +37,7 @@ public sealed class DirectoryListing
     {
         if (string.IsNullOrWhiteSpace(directoryName))
         {
-            throw new DomainRuleViolationException("디렉터리 이름이 비어 있습니다.");
+            throw new StorageDomainException("디렉터리 이름이 비어 있습니다.");
         }
 
         return directoryName.Trim();

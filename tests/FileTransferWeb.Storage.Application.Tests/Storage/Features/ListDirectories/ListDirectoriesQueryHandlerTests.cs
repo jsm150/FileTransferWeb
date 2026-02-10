@@ -1,6 +1,6 @@
-using FileTransferWeb.Domain.Shared;
 using FileTransferWeb.Storage.Application.Abstractions;
 using FileTransferWeb.Storage.Application.Features.ListDirectories;
+using FileTransferWeb.Storage.Domain.Exceptions;
 using Xunit;
 
 namespace FileTransferWeb.Storage.Application.Tests.Storage.Features.ListDirectories;
@@ -47,7 +47,7 @@ public class ListDirectoriesQueryHandlerTests
         var directoryReader = new FakeStorageDirectoryReader(["ignored"]);
         var handler = new ListDirectoriesQueryHandler(rootPathProvider, directoryReader);
 
-        await Assert.ThrowsAsync<DomainRuleViolationException>(
+        await Assert.ThrowsAsync<StorageDomainException>(
             () => handler.Handle(new ListDirectoriesQuery("../outside"), CancellationToken.None));
     }
 

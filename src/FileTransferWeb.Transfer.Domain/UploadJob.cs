@@ -1,4 +1,4 @@
-using FileTransferWeb.Domain.Shared;
+using FileTransferWeb.Transfer.Domain.Exceptions;
 
 namespace FileTransferWeb.Transfer.Domain;
 
@@ -24,12 +24,12 @@ public sealed class UploadJob
     {
         if (string.IsNullOrWhiteSpace(fileName))
         {
-            throw new DomainRuleViolationException("업로드 파일 이름이 비어 있습니다.");
+            throw new TransferDomainException("업로드 파일 이름이 비어 있습니다.");
         }
 
         if (string.IsNullOrWhiteSpace(targetPath))
         {
-            throw new DomainRuleViolationException("업로드 대상 경로가 비어 있습니다.");
+            throw new TransferDomainException("업로드 대상 경로가 비어 있습니다.");
         }
 
         return new UploadJob(Guid.NewGuid(), fileName, targetPath);
