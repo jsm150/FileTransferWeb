@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="14.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../FileTransferWeb.Domain.Shared/FileTransferWeb.Domain.Shared.csproj" />
+    <ProjectReference Include="../FileTransferWeb.Storage.Domain/FileTransferWeb.Storage.Domain.csproj" />
+  </ItemGroup>
+
+</Project>
