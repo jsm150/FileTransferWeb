@@ -12,6 +12,8 @@
 
   <ItemGroup>
     <ProjectReference Include="../FileTransferWeb.Domain.Shared/FileTransferWeb.Domain.Shared.csproj" />
+    <ProjectReference Include="../FileTransferWeb.Storage.Application/FileTransferWeb.Storage.Application.csproj" />
+    <ProjectReference Include="../FileTransferWeb.Storage.Domain/FileTransferWeb.Storage.Domain.csproj" />
     <ProjectReference Include="../FileTransferWeb.Transfer.Domain/FileTransferWeb.Transfer.Domain.csproj" />
     <ProjectReference Include="../FileTransferWeb.Transfer.Application/FileTransferWeb.Transfer.Application.csproj" />
   </ItemGroup>

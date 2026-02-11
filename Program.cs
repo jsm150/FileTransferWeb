@@ -32,6 +32,7 @@ app.UseRouting();
 app.UseAuthorization();
 
 app.MapStorageEndpoints();
+app.MapTransferEndpoints();
 app.MapStaticAssets();
 app.MapRazorPages()
    .WithStaticAssets();

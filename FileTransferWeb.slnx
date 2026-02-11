@@ -7,10 +7,14 @@
     <Project Path="tests/FileTransferWeb.Storage.Domain.Tests/FileTransferWeb.Storage.Domain.Tests.csproj" />
     <Project Path="tests/FileTransferWeb.Storage.Infrastructure.Tests/FileTransferWeb.Storage.Infrastructure.Tests.csproj" />
   </Folder>
+  <Folder Name="/Transfer/">
+    <Project Path="src/FileTransferWeb.Transfer.Application/FileTransferWeb.Transfer.Application.csproj" />
+    <Project Path="src/FileTransferWeb.Transfer.Domain/FileTransferWeb.Transfer.Domain.csproj" />
+    <Project Path="src/FileTransferWeb.Transfer.Infrastructure/FileTransferWeb.Transfer.Infrastructure.csproj" />
+    <Project Path="tests/FileTransferWeb.Transfer.Application.Tests/FileTransferWeb.Transfer.Application.Tests.csproj" />
+    <Project Path="tests/FileTransferWeb.Transfer.Domain.Tests/FileTransferWeb.Transfer.Domain.Tests.csproj" />
+  </Folder>
   <Project Path="FileTransferWeb.csproj" />
   <Project Path="src/FileTransferWeb.Domain.Shared/FileTransferWeb.Domain.Shared.csproj" />
-  <Project Path="src/FileTransferWeb.Transfer.Application/FileTransferWeb.Transfer.Application.csproj" />
-  <Project Path="src/FileTransferWeb.Transfer.Domain/FileTransferWeb.Transfer.Domain.csproj" />
-  <Project Path="src/FileTransferWeb.Transfer.Infrastructure/FileTransferWeb.Transfer.Infrastructure.csproj" />
   <Project Path="tests/FileTransferWeb.Web.Tests/FileTransferWeb.Web.Tests.csproj" />
 </Solution>

@@ -1,5 +1,6 @@
 using FileTransferWeb.Domain.Shared;
 using FileTransferWeb.Storage.Domain.Exceptions;
+using FileTransferWeb.Transfer.Domain.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
@@ -43,12 +44,14 @@ public sealed class ApiExceptionHandler(IProblemDetailsService problemDetailsSer
         {
             StorageDomainException storageDomainException =>
                 (StatusCodes.Status400BadRequest, "잘못된 디렉터리 경로 요청입니다.", storageDomainException.Message),
+            TransferDomainException transferDomainException =>
+                (StatusCodes.Status400BadRequest, "업로드 요청이 올바르지 않습니다.", transferDomainException.Message),
             DomainException domainException =>
                 (StatusCodes.Status400BadRequest, "도메인 규칙을 위반한 요청입니다.", domainException.Message),
             DirectoryNotFoundException =>
                 (StatusCodes.Status404NotFound, "디렉터리를 찾을 수 없습니다.", "요청한 디렉터리가 존재하지 않습니다."),
             _ =>
-                (StatusCodes.Status500InternalServerError, "디렉터리 목록 조회에 실패했습니다.", "잠시 후 다시 시도해주세요.")
+                (StatusCodes.Status500InternalServerError, "요청 처리에 실패했습니다.", "잠시 후 다시 시도해주세요.")
         };
     }
 }
