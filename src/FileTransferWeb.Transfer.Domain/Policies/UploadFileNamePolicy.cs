@@ -1,5 +1,4 @@
 using FileTransferWeb.Transfer.Domain.Exceptions;
-using FileTransferWeb.Transfer.Domain.Models;
 
 namespace FileTransferWeb.Transfer.Domain.Policies;
 
@@ -35,7 +34,7 @@ public sealed class UploadFileNamePolicy
         }
     }
 
-    public UploadFilePlanItem Reserve(string rawFileName, long sizeBytes, Func<Stream> openReadStream)
+    public string ReserveStoredFileName(string rawFileName)
     {
         var normalizedName = NormalizeFileName(rawFileName);
         var parsed = ParseNumberedName(normalizedName);
@@ -48,13 +47,7 @@ public sealed class UploadFileNamePolicy
         }
 
         var assignedNumber = usedNumbers.ReserveSmallestAvailable();
-        var storedFileName = BuildFileName(parsed.BaseName, parsed.Extension, assignedNumber);
-
-        return new UploadFilePlanItem(
-            normalizedName,
-            storedFileName,
-            sizeBytes,
-            openReadStream);
+        return BuildFileName(parsed.BaseName, parsed.Extension, assignedNumber);
     }
 
     private static string NormalizeFileName(string? fileName)

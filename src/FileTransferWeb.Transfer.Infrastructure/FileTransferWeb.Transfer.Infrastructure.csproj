@@ -11,6 +11,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="tusdotnet" Version="2.11.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../FileTransferWeb.Domain.Shared/FileTransferWeb.Domain.Shared.csproj" />
     <ProjectReference Include="../FileTransferWeb.Storage.Application/FileTransferWeb.Storage.Application.csproj" />
     <ProjectReference Include="../FileTransferWeb.Storage.Domain/FileTransferWeb.Storage.Domain.csproj" />

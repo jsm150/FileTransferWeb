@@ -13,7 +13,7 @@ builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddStorageApplication();
 builder.Services.AddTransferApplication();
 builder.Services.AddStorageInfrastructure(builder.Configuration);
-builder.Services.AddTransferInfrastructure();
+builder.Services.AddTransferInfrastructure(builder.Configuration);
 
 var app = builder.Build();
 
@@ -32,7 +32,7 @@ app.UseRouting();
 app.UseAuthorization();
 
 app.MapStorageEndpoints();
-app.MapTransferEndpoints();
+app.MapTusUploads();
 app.MapStaticAssets();
 app.MapRazorPages()
    .WithStaticAssets();
