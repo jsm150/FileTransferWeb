@@ -3,31 +3,34 @@ using FileTransferWeb.Transfer.Domain.Policies;
 using FileTransferWeb.Transfer.Domain.Ports;
 using MediatR;
 
-namespace FileTransferWeb.Transfer.Application.Notifications;
+namespace FileTransferWeb.Transfer.Application.Features.CompleteTusUpload;
 
-public sealed class TusUploadCompletedNotificationHandler(
+public sealed class CompleteTusUploadCommandHandler(
+    ITransferCompletedUploadReader completedUploadReader,
     ITransferTargetFileNameReader targetFileNameReader,
     ITransferCompletedFileMover completedFileMover)
-    : INotificationHandler<TusUploadCompletedNotification>
+    : IRequestHandler<CompleteTusUploadCommand>
 {
+    private readonly ITransferCompletedUploadReader _completedUploadReader = completedUploadReader;
     private readonly ITransferTargetFileNameReader _targetFileNameReader = targetFileNameReader;
     private readonly ITransferCompletedFileMover _completedFileMover = completedFileMover;
 
-    public async Task Handle(TusUploadCompletedNotification notification, CancellationToken cancellationToken)
+    public async Task Handle(CompleteTusUploadCommand request, CancellationToken cancellationToken)
     {
-        var uploadJob = UploadJob.Create(notification.TargetPath, [notification.OriginalFileName]);
+        var completedUpload = await _completedUploadReader.ReadAsync(request.UploadId, cancellationToken);
+        var uploadJob = UploadJob.Create(completedUpload.TargetPath, [completedUpload.OriginalFileName]);
         var existingFileNames = await _targetFileNameReader.GetExistingFileNamesAsync(
             uploadJob.TargetPath,
             cancellationToken);
 
         var fileNamePolicy = new UploadFileNamePolicy(existingFileNames);
-        var storedFileName = fileNamePolicy.ReserveStoredFileName(notification.OriginalFileName);
+        var storedFileName = fileNamePolicy.ReserveStoredFileName(completedUpload.OriginalFileName);
 
         string relativePath;
         try
         {
             relativePath = await _completedFileMover.MoveCompletedFileAsync(
-                notification.UploadId,
+                completedUpload.UploadId,
                 uploadJob.TargetPath,
                 storedFileName,
                 cancellationToken);
@@ -42,9 +45,9 @@ public sealed class TusUploadCompletedNotificationHandler(
             uploadJob.Complete(
             [
                 UploadFileResult.Failed(
-                    notification.OriginalFileName,
+                    completedUpload.OriginalFileName,
                     "파일 저장에 실패했습니다.",
-                    notification.FileSizeBytes)
+                    completedUpload.FileSizeBytes)
             ]);
 
             throw;
@@ -53,10 +56,10 @@ public sealed class TusUploadCompletedNotificationHandler(
         uploadJob.Complete(
         [
             UploadFileResult.Succeeded(
-                notification.OriginalFileName,
+                completedUpload.OriginalFileName,
                 storedFileName,
                 relativePath,
-                notification.FileSizeBytes)
+                completedUpload.FileSizeBytes)
         ]);
     }
 }

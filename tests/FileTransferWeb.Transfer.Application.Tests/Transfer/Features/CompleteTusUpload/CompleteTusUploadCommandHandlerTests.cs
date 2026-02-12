@@ -1,28 +1,25 @@
-using FileTransferWeb.Transfer.Application.Notifications;
+using FileTransferWeb.Transfer.Application.Features.CompleteTusUpload;
 using FileTransferWeb.Transfer.Domain.Ports;
 using Xunit;
 
-namespace FileTransferWeb.Transfer.Application.Tests.Transfer.Notifications;
+namespace FileTransferWeb.Transfer.Application.Tests.Transfer.Features.CompleteTusUpload;
 
-public class TusUploadCompletedNotificationHandlerTests
+public class CompleteTusUploadCommandHandlerTests
 {
-    [Fact(DisplayName = "완료 이벤트 처리 시 기존 파일명을 조회하고 정책 파일명으로 이동을 요청한다")]
+    [Fact(DisplayName = "완료 명령 처리 시 기존 파일명을 조회하고 정책 파일명으로 이동을 요청한다")]
     public async Task Handle_ResolvesStoredName_AndMovesCompletedFile()
     {
+        var completedUploadReader = new FakeCompletedUploadReader(
+            new TransferCompletedUploadInfo("upload-1", "images", "photo.jpg", 123, "image/jpeg"));
         var reader = new FakeTargetFileNameReader(["photo.jpg", "photo (1).jpg"]);
         var mover = new FakeCompletedFileMover();
-        var handler = new TusUploadCompletedNotificationHandler(reader, mover);
+        var handler = new CompleteTusUploadCommandHandler(completedUploadReader, reader, mover);
 
-        var notification = new TusUploadCompletedNotification(
-            "upload-1",
-            "images",
-            "photo.jpg",
-            "/tmp/upload-1",
-            123,
-            "image/jpeg");
+        var command = new CompleteTusUploadCommand("upload-1");
 
-        await handler.Handle(notification, CancellationToken.None);
+        await handler.Handle(command, CancellationToken.None);
 
+        Assert.Equal(1, completedUploadReader.CallCount);
         Assert.Equal(1, reader.CallCount);
         Assert.Equal(1, mover.CallCount);
         Assert.Equal("upload-1", mover.LastUploadId);
@@ -33,19 +30,30 @@ public class TusUploadCompletedNotificationHandlerTests
     [Fact(DisplayName = "이동 중 오류가 발생하면 예외를 그대로 전달한다")]
     public async Task Handle_Throws_WhenMoveFails()
     {
+        var completedUploadReader = new FakeCompletedUploadReader(
+            new TransferCompletedUploadInfo("upload-2", "images", "photo.jpg", 123, "image/jpeg"));
         var reader = new FakeTargetFileNameReader([]);
         var mover = new FakeCompletedFileMover { ThrowOnMove = true };
-        var handler = new TusUploadCompletedNotificationHandler(reader, mover);
+        var handler = new CompleteTusUploadCommandHandler(completedUploadReader, reader, mover);
 
-        var notification = new TusUploadCompletedNotification(
-            "upload-2",
-            "images",
-            "photo.jpg",
-            "/tmp/upload-2",
-            123,
-            "image/jpeg");
+        var command = new CompleteTusUploadCommand("upload-2");
 
-        await Assert.ThrowsAsync<IOException>(() => handler.Handle(notification, CancellationToken.None));
+        await Assert.ThrowsAsync<IOException>(() => handler.Handle(command, CancellationToken.None));
+    }
+
+    private sealed class FakeCompletedUploadReader(TransferCompletedUploadInfo completedUploadInfo)
+        : ITransferCompletedUploadReader
+    {
+        private readonly TransferCompletedUploadInfo _completedUploadInfo = completedUploadInfo;
+        public int CallCount { get; private set; }
+
+        public ValueTask<TransferCompletedUploadInfo> ReadAsync(
+            string uploadId,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            return ValueTask.FromResult(_completedUploadInfo);
+        }
     }
 
     private sealed class FakeTargetFileNameReader(IReadOnlyList<string> existingFileNames)

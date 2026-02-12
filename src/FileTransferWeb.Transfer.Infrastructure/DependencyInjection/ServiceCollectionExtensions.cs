@@ -17,8 +17,9 @@ public static class ServiceCollectionExtensions
             .ValidateOnStart();
 
         services.AddSingleton<FileSystemTusStoreFactory>();
-        services.AddSingleton<TusCompletionEventPublisher>();
 
+        services.AddSingleton<ITransferCompletedUploadReader, TusCompletedUploadReader>();
+        services.AddSingleton<ITransferUploadCreateValidator, TransferUploadCreateValidator>();
         services.AddSingleton<ITransferTargetFileNameReader, FileSystemTransferTargetFileNameReader>();
         services.AddSingleton<ITransferCompletedFileMover, FileSystemTransferCompletedFileMover>();
 

@@ -1,8 +1,12 @@
 using System.Net;
 using System.Text;
-using FileTransferWeb.Storage.Application.Abstractions;
-using FileTransferWeb.Storage.Domain.Policies;
+using FileTransferWeb.Domain.Shared;
+using FileTransferWeb.Transfer.Application.Features.CompleteTusUpload;
+using FileTransferWeb.Transfer.Application.Features.ValidateTusUploadCreate;
 using FileTransferWeb.Transfer.Infrastructure.Tus;
+using FileTransferWeb.Transfer.Domain.Exceptions;
+using FileTransferWeb.Storage.Domain.Exceptions;
+using MediatR;
 using Microsoft.Extensions.Options;
 using tusdotnet;
 using tusdotnet.Models;
@@ -24,7 +28,6 @@ public static class TusEndpoints
                     .Value;
 
                 var storeFactory = httpContext.RequestServices.GetRequiredService<FileSystemTusStoreFactory>();
-                var completionEventPublisher = httpContext.RequestServices.GetRequiredService<TusCompletionEventPublisher>();
 
                 return await Task.FromResult(
                     new DefaultTusConfiguration
@@ -49,25 +52,33 @@ public static class TusEndpoints
                                     return;
                                 }
 
-                                var storageRootPathProvider = context.HttpContext.RequestServices
-                                    .GetRequiredService<IStorageRootPathProvider>();
-                                var uploadRoot = storageRootPathProvider.GetUploadRootPath();
+                                var sender = context.HttpContext.RequestServices.GetRequiredService<ISender>();
 
                                 try
                                 {
-                                    _ = new StoragePathPolicy(uploadRoot, targetPath);
+                                    await sender.Send(
+                                        new ValidateTusUploadCreateCommand(targetPath, fileName),
+                                        context.CancellationToken);
                                 }
-                                catch (Exception ex)
+                                catch (Exception ex) when (ex is DomainException
+                                                           or TransferDomainException
+                                                           or StorageDomainException)
                                 {
                                     context.FailRequest(HttpStatusCode.BadRequest, ex.Message);
                                     return;
                                 }
-
-                                await Task.CompletedTask;
                             },
                             OnFileCompleteAsync = async context =>
                             {
-                                await completionEventPublisher.PublishAsync(context);
+                                if (string.IsNullOrWhiteSpace(context.FileId))
+                                {
+                                    throw new InvalidOperationException("업로드 식별자를 확인할 수 없습니다.");
+                                }
+
+                                var sender = context.HttpContext.RequestServices.GetRequiredService<ISender>();
+                                await sender.Send(
+                                    new CompleteTusUploadCommand(context.FileId),
+                                    context.CancellationToken);
                             }
                         }
                     });
