@@ -23,6 +23,12 @@ public sealed class TusCompletedUploadReader(FileSystemTusStoreFactory tusStoreF
             ?? throw new InvalidOperationException("업로드 파일 정보를 찾을 수 없습니다.");
 
         var metadata = await tusFile.GetMetadataAsync(cancellationToken);
+        var batchIdText = ReadRequiredMetadata(metadata, "batchId");
+        if (!Guid.TryParse(batchIdText, out var batchId))
+        {
+            throw new InvalidOperationException("batchId 메타데이터 형식이 올바르지 않습니다.");
+        }
+
         var targetPath = ReadRequiredMetadata(metadata, "targetPath");
         var originalFileName = ReadRequiredMetadata(metadata, "fileName");
         var contentType = ReadOptionalMetadata(metadata, "contentType");
@@ -35,6 +41,7 @@ public sealed class TusCompletedUploadReader(FileSystemTusStoreFactory tusStoreF
 
         return new TransferCompletedUploadInfo(
             uploadId,
+            batchId,
             targetPath,
             originalFileName,
             fileSizeBytes,

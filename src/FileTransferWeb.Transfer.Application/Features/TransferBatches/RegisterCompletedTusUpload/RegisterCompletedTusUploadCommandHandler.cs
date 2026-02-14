@@ -8,19 +8,19 @@ namespace FileTransferWeb.Transfer.Application.Features.TransferBatches.Register
 public sealed class RegisterCompletedTusUploadCommandHandler(
     ITransferBatchRepository transferBatchRepository,
     ITransferCompletedUploadReader completedUploadReader)
-    : IRequestHandler<RegisterCompletedTusUploadCommand, RegisterCompletedTusUploadResult>
+    : IRequestHandler<RegisterCompletedTusUploadCommand, Unit>
 {
     private readonly ITransferBatchRepository _transferBatchRepository = transferBatchRepository;
     private readonly ITransferCompletedUploadReader _completedUploadReader = completedUploadReader;
 
-    public async Task<RegisterCompletedTusUploadResult> Handle(
+    public async Task<Unit> Handle(
         RegisterCompletedTusUploadCommand request,
         CancellationToken cancellationToken)
     {
-        var batch = await _transferBatchRepository.GetAsync(request.BatchId, cancellationToken)
+        var completedUpload = await _completedUploadReader.ReadAsync(request.UploadId, cancellationToken);
+        var batch = await _transferBatchRepository.GetAsync(completedUpload.BatchId, cancellationToken)
                     ?? throw new TransferDomainException("업로드 배치를 찾을 수 없습니다.");
 
-        var completedUpload = await _completedUploadReader.ReadAsync(request.UploadId, cancellationToken);
         var batchUpload = TransferBatchUpload.Create(
             completedUpload.UploadId,
             completedUpload.OriginalFileName,
@@ -31,9 +31,6 @@ public sealed class RegisterCompletedTusUploadCommandHandler(
         batch.RegisterCompletedUpload(batchUpload);
         await _transferBatchRepository.SaveAsync(batch, cancellationToken);
 
-        return new RegisterCompletedTusUploadResult(
-            batch.Id,
-            batch.ExpectedFileCount,
-            batch.CompletedUploads.Count);
+        return Unit.Value;
     }
 }

@@ -87,25 +87,9 @@ public static class TusEndpoints
                                     throw new InvalidOperationException("업로드 식별자를 확인할 수 없습니다.");
                                 }
 
-                                var storeFactory = context.HttpContext.RequestServices.GetRequiredService<FileSystemTusStoreFactory>();
-                                var store = storeFactory.CreateStore();
-                                var tusFile = await store.GetFileAsync(context.FileId, context.CancellationToken)
-                                              ?? throw new InvalidOperationException("업로드 파일 정보를 찾을 수 없습니다.");
-
-                                var metadata = await tusFile.GetMetadataAsync(context.CancellationToken);
-                                if (!TryGetRequiredMetadata(metadata, "batchId", out var batchIdText))
-                                {
-                                    throw new InvalidOperationException("batchId 메타데이터가 필요합니다.");
-                                }
-
-                                if (!Guid.TryParse(batchIdText, out var batchId))
-                                {
-                                    throw new InvalidOperationException("batchId 메타데이터 형식이 올바르지 않습니다.");
-                                }
-
                                 var sender = context.HttpContext.RequestServices.GetRequiredService<ISender>();
                                 await sender.Send(
-                                    new RegisterCompletedTusUploadCommand(batchId, context.FileId),
+                                    new RegisterCompletedTusUploadCommand(context.FileId),
                                     context.CancellationToken);
                             }
                         }

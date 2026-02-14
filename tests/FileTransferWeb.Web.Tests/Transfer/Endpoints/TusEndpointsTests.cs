@@ -88,6 +88,29 @@ public class TusEndpointsTests
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [Fact(DisplayName = "존재하지 않는 batchId로 업로드 완료 시 400을 반환한다")]
+    public async Task TusUpload_ReturnsBadRequest_WhenBatchIdDoesNotExistOnComplete()
+    {
+        using var roots = new TemporaryRoots();
+        await using var factory = new TransferApiFactory(roots.UploadRoot, roots.TusTempRoot);
+        using var client = factory.CreateClient();
+
+        var fileBytes = Encoding.UTF8.GetBytes("missing-batch");
+        var createResponse = await SendCreateRequestAsync(
+            client,
+            uploadLength: fileBytes.Length,
+            targetPath: "images",
+            fileName: "photo.txt",
+            batchId: Guid.NewGuid());
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+
+        var uploadUrl = GetUploadUrl(createResponse);
+        var patchResponse = await SendPatchRequestAsync(client, uploadUrl, fileBytes);
+
+        Assert.Equal(HttpStatusCode.BadRequest, patchResponse.StatusCode);
+    }
+
     private static async Task<HttpResponseMessage> SendCreateRequestAsync(
         HttpClient client,
         int uploadLength,
