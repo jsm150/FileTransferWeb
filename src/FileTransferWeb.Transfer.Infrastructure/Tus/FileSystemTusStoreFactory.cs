@@ -23,14 +23,14 @@ public sealed class FileSystemTusStoreFactory(IOptions<TransferTusOptions> optio
                 return _store;
             }
 
-            var tempRoot = ResolveTempRootPath();
+            var tempRoot = GetTempRootPath();
             Directory.CreateDirectory(tempRoot);
             _store = new TusDiskStore(tempRoot);
             return _store;
         }
     }
 
-    private string ResolveTempRootPath()
+    public string GetTempRootPath()
     {
         if (string.IsNullOrWhiteSpace(_options.TempRoot))
         {

@@ -2,16 +2,32 @@ using FileTransferWeb.Storage.Application.Abstractions;
 using FileTransferWeb.Storage.Domain.Policies;
 using FileTransferWeb.Transfer.Domain.Ports;
 using FileTransferWeb.Transfer.Infrastructure.Tus;
+using tusdotnet.Stores;
 
 namespace FileTransferWeb.Transfer.Infrastructure.Storage;
 
-public sealed class FileSystemTransferCompletedFileMover(
-    IStorageRootPathProvider storageRootPathProvider,
-    FileSystemTusStoreFactory tusStoreFactory)
-    : ITransferCompletedFileMover
+public sealed class FileSystemTransferCompletedFileMover : ITransferCompletedFileMover
 {
-    private readonly IStorageRootPathProvider _storageRootPathProvider = storageRootPathProvider;
-    private readonly FileSystemTusStoreFactory _tusStoreFactory = tusStoreFactory;
+    private readonly IStorageRootPathProvider _storageRootPathProvider;
+    private readonly FileSystemTusStoreFactory _tusStoreFactory;
+    private readonly Action<string, string, bool> _moveFile;
+
+    public FileSystemTransferCompletedFileMover(
+        IStorageRootPathProvider storageRootPathProvider,
+        FileSystemTusStoreFactory tusStoreFactory)
+        : this(storageRootPathProvider, tusStoreFactory, File.Move)
+    {
+    }
+
+    public FileSystemTransferCompletedFileMover(
+        IStorageRootPathProvider storageRootPathProvider,
+        FileSystemTusStoreFactory tusStoreFactory,
+        Action<string, string, bool> moveFile)
+    {
+        _storageRootPathProvider = storageRootPathProvider;
+        _tusStoreFactory = tusStoreFactory;
+        _moveFile = moveFile;
+    }
 
     public async ValueTask<string> MoveCompletedFileAsync(
         string uploadId,
@@ -33,6 +49,47 @@ public sealed class FileSystemTransferCompletedFileMover(
         var destinationFullPath = Path.Combine(pathPolicy.FullCurrentPath, safeStoredFileName);
 
         var store = _tusStoreFactory.CreateStore();
+        var sourceFullPath = Path.Combine(_tusStoreFactory.GetTempRootPath(), uploadId);
+
+        if (!File.Exists(sourceFullPath))
+        {
+            throw new InvalidOperationException("업로드 임시 파일을 찾을 수 없습니다.");
+        }
+
+        try
+        {
+            _moveFile(sourceFullPath, destinationFullPath, false);
+            await DeleteTusUploadArtifactsAsync(
+                store,
+                uploadId,
+                cancellationToken,
+                ignoreIoExceptions: true);
+        }
+        catch (Exception ex) when (ex is IOException
+                                   or UnauthorizedAccessException
+                                   or DirectoryNotFoundException
+                                   or PathTooLongException
+                                   or NotSupportedException)
+        {
+            await CopyFromTusStoreAsync(store, uploadId, destinationFullPath, cancellationToken);
+            await DeleteTusUploadArtifactsAsync(
+                store,
+                uploadId,
+                cancellationToken,
+                ignoreIoExceptions: false);
+        }
+
+        return string.IsNullOrEmpty(pathPolicy.CurrentRelativePath)
+            ? safeStoredFileName
+            : $"{pathPolicy.CurrentRelativePath}/{safeStoredFileName}";
+    }
+
+    private static async ValueTask CopyFromTusStoreAsync(
+        TusDiskStore store,
+        string uploadId,
+        string destinationFullPath,
+        CancellationToken cancellationToken)
+    {
         var tusFile = await store.GetFileAsync(uploadId, cancellationToken);
         if (tusFile is null)
         {
@@ -50,11 +107,21 @@ public sealed class FileSystemTransferCompletedFileMover(
         {
             await sourceStream.CopyToAsync(destinationStream, cancellationToken);
         }
+    }
 
-        await store.DeleteFileAsync(uploadId, cancellationToken);
-
-        return string.IsNullOrEmpty(pathPolicy.CurrentRelativePath)
-            ? safeStoredFileName
-            : $"{pathPolicy.CurrentRelativePath}/{safeStoredFileName}";
+    private static async ValueTask DeleteTusUploadArtifactsAsync(
+        TusDiskStore store,
+        string uploadId,
+        CancellationToken cancellationToken,
+        bool ignoreIoExceptions)
+    {
+        try
+        {
+            await store.DeleteFileAsync(uploadId, cancellationToken);
+        }
+        catch (IOException) when (ignoreIoExceptions)
+        {
+            // 최종 파일은 이미 저장됐으므로 sidecar 정리 중 I/O 예외는 무시한다.
+        }
     }
 }
