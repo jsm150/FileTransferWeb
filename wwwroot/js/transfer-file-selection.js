@@ -91,6 +91,11 @@
         .replace(/\/+$/, "");
     }
 
+    function resolveRequestTargetPath(pathInputValue) {
+      var normalizedPath = normalizePath(pathInputValue);
+      return normalizedPath.length > 0 ? normalizedPath : ".";
+    }
+
     function setUploadMessage(message, tone) {
       uiState.message = message;
       uiState.tone = tone;
@@ -327,8 +332,6 @@
 
     function render() {
       var canEdit = batchState.phase === "idle" || batchState.phase === "done";
-      var normalizedPath = normalizePath(targetPathInput.value);
-      var hasTargetPath = normalizedPath.length > 0;
       var hasFiles = selectedFiles.size > 0;
 
       targetPathInput.disabled = !canEdit;
@@ -339,7 +342,7 @@
       pickFilesButton.disabled = !canEdit;
       resetButton.disabled = !canEdit || !hasFiles;
 
-      startUploadButton.disabled = !tusClientAvailable || !canEdit || !hasFiles || !hasTargetPath;
+      startUploadButton.disabled = !tusClientAvailable || !canEdit || !hasFiles;
 
       if (batchIdValue) {
         batchIdValue.textContent = batchState.batchId ? batchState.batchId : "생성 전";
@@ -651,11 +654,7 @@
         return;
       }
 
-      var targetPath = normalizePath(targetPathInput.value);
-      if (!targetPath) {
-        setUploadMessage("대상 경로를 입력해 주세요.", "error");
-        return;
-      }
+      var targetPath = resolveRequestTargetPath(targetPathInput.value);
 
       if (selectedFiles.size === 0) {
         setUploadMessage("업로드할 파일을 선택해 주세요.", "error");
