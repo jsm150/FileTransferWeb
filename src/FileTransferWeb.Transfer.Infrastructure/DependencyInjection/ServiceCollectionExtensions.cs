@@ -1,4 +1,5 @@
 using FileTransferWeb.Transfer.Domain.Ports;
+using FileTransferWeb.Transfer.Infrastructure.Batch;
 using FileTransferWeb.Transfer.Infrastructure.Storage;
 using FileTransferWeb.Transfer.Infrastructure.Tus;
 using Microsoft.Extensions.Configuration;
@@ -18,6 +19,7 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<FileSystemTusStoreFactory>();
 
+        services.AddSingleton<ITransferBatchRepository, InMemoryTransferBatchRepository>();
         services.AddSingleton<ITransferCompletedUploadReader, TusCompletedUploadReader>();
         services.AddSingleton<ITransferUploadCreateValidator, TransferUploadCreateValidator>();
         services.AddSingleton<ITransferTargetFileNameReader, FileSystemTransferTargetFileNameReader>();

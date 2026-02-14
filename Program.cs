@@ -33,6 +33,7 @@ app.UseAuthorization();
 
 app.MapStorageEndpoints();
 app.MapTusUploads();
+app.MapTransferBatchEndpoints();
 app.MapStaticAssets();
 app.MapRazorPages()
    .WithStaticAssets();

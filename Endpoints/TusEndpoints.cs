@@ -1,11 +1,11 @@
 using System.Net;
 using System.Text;
 using FileTransferWeb.Domain.Shared;
-using FileTransferWeb.Transfer.Application.Features.CompleteTusUpload;
+using FileTransferWeb.Transfer.Application.Features.TransferBatches.RegisterCompletedTusUpload;
 using FileTransferWeb.Transfer.Application.Features.ValidateTusUploadCreate;
-using FileTransferWeb.Transfer.Infrastructure.Tus;
-using FileTransferWeb.Transfer.Domain.Exceptions;
 using FileTransferWeb.Storage.Domain.Exceptions;
+using FileTransferWeb.Transfer.Domain.Exceptions;
+using FileTransferWeb.Transfer.Infrastructure.Tus;
 using MediatR;
 using Microsoft.Extensions.Options;
 using tusdotnet;
@@ -52,6 +52,18 @@ public static class TusEndpoints
                                     return;
                                 }
 
+                                if (!TryGetRequiredMetadata(context.Metadata, "batchId", out var batchIdText))
+                                {
+                                    context.FailRequest(HttpStatusCode.BadRequest, "batchId 메타데이터가 필요합니다.");
+                                    return;
+                                }
+
+                                if (!Guid.TryParse(batchIdText, out _))
+                                {
+                                    context.FailRequest(HttpStatusCode.BadRequest, "batchId 메타데이터 형식이 올바르지 않습니다.");
+                                    return;
+                                }
+
                                 var sender = context.HttpContext.RequestServices.GetRequiredService<ISender>();
 
                                 try
@@ -75,9 +87,25 @@ public static class TusEndpoints
                                     throw new InvalidOperationException("업로드 식별자를 확인할 수 없습니다.");
                                 }
 
+                                var storeFactory = context.HttpContext.RequestServices.GetRequiredService<FileSystemTusStoreFactory>();
+                                var store = storeFactory.CreateStore();
+                                var tusFile = await store.GetFileAsync(context.FileId, context.CancellationToken)
+                                              ?? throw new InvalidOperationException("업로드 파일 정보를 찾을 수 없습니다.");
+
+                                var metadata = await tusFile.GetMetadataAsync(context.CancellationToken);
+                                if (!TryGetRequiredMetadata(metadata, "batchId", out var batchIdText))
+                                {
+                                    throw new InvalidOperationException("batchId 메타데이터가 필요합니다.");
+                                }
+
+                                if (!Guid.TryParse(batchIdText, out var batchId))
+                                {
+                                    throw new InvalidOperationException("batchId 메타데이터 형식이 올바르지 않습니다.");
+                                }
+
                                 var sender = context.HttpContext.RequestServices.GetRequiredService<ISender>();
                                 await sender.Send(
-                                    new CompleteTusUploadCommand(context.FileId),
+                                    new RegisterCompletedTusUploadCommand(batchId, context.FileId),
                                     context.CancellationToken);
                             }
                         }

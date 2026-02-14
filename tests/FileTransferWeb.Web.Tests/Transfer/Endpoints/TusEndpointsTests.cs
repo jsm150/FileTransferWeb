@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -10,19 +12,21 @@ namespace FileTransferWeb.Web.Tests.Transfer.Endpoints;
 
 public class TusEndpointsTests
 {
-    [Fact(DisplayName = "tus 업로드 생성과 청크 전송이 완료되면 최종 파일이 저장된다")]
-    public async Task TusUpload_Completes_AndSavesFile()
+    [Fact(DisplayName = "tus 업로드 후 배치 완료 API를 호출하면 최종 파일이 저장된다")]
+    public async Task TusUpload_SavesFile_WhenBatchCompleteIsCalled()
     {
         using var roots = new TemporaryRoots();
         await using var factory = new TransferApiFactory(roots.UploadRoot, roots.TusTempRoot);
         using var client = factory.CreateClient();
 
+        var batchId = await CreateBatchAsync(client, "images", 1);
         var fileBytes = Encoding.UTF8.GetBytes("hello-tus");
         var createResponse = await SendCreateRequestAsync(
             client,
             uploadLength: fileBytes.Length,
             targetPath: "images",
-            fileName: "photo.txt");
+            fileName: "photo.txt",
+            batchId: batchId);
 
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         var uploadUrl = GetUploadUrl(createResponse);
@@ -36,6 +40,12 @@ public class TusEndpointsTests
         Assert.Equal(fileBytes.Length.ToString(), GetRequiredHeaderValue(patchResponse, "Upload-Offset"));
 
         var savedFilePath = Path.Combine(roots.UploadRoot, "images", "photo.txt");
+        await Task.Delay(200);
+        Assert.False(File.Exists(savedFilePath));
+
+        var completeResponse = await client.PostAsync($"/api/transfer/batches/{batchId}/complete", null);
+        Assert.Equal(HttpStatusCode.OK, completeResponse.StatusCode);
+
         await WaitForFileAsync(savedFilePath, TimeSpan.FromSeconds(3));
 
         Assert.True(File.Exists(savedFilePath));
@@ -53,13 +63,14 @@ public class TusEndpointsTests
             client,
             uploadLength: 10,
             targetPath: "../outside",
-            fileName: "photo.txt");
+            fileName: "photo.txt",
+            batchId: await CreateBatchAsync(client, "images", 1));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    [Fact(DisplayName = "fileName 메타데이터가 없으면 400을 반환한다")]
-    public async Task TusUpload_ReturnsBadRequest_WhenFileNameMetadataIsMissing()
+    [Fact(DisplayName = "batchId 메타데이터가 없으면 400을 반환한다")]
+    public async Task TusUpload_ReturnsBadRequest_WhenBatchIdMetadataIsMissing()
     {
         using var roots = new TemporaryRoots();
         await using var factory = new TransferApiFactory(roots.UploadRoot, roots.TusTempRoot);
@@ -70,7 +81,7 @@ public class TusEndpointsTests
         request.Headers.Add("Upload-Length", "10");
         request.Headers.Add(
             "Upload-Metadata",
-            BuildMetadata(("targetPath", "images")));
+            BuildMetadata(("targetPath", "images"), ("fileName", "photo.txt")));
 
         var response = await client.SendAsync(request);
 
@@ -81,16 +92,35 @@ public class TusEndpointsTests
         HttpClient client,
         int uploadLength,
         string targetPath,
-        string fileName)
+        string fileName,
+        Guid batchId)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, "/api/transfer/uploads");
         request.Headers.Add("Tus-Resumable", "1.0.0");
         request.Headers.Add("Upload-Length", uploadLength.ToString());
         request.Headers.Add(
             "Upload-Metadata",
-            BuildMetadata(("targetPath", targetPath), ("fileName", fileName)));
+            BuildMetadata(
+                ("targetPath", targetPath),
+                ("fileName", fileName),
+                ("batchId", batchId.ToString())));
 
         return await client.SendAsync(request);
+    }
+
+    private static async Task<Guid> CreateBatchAsync(HttpClient client, string targetPath, int expectedFileCount)
+    {
+        var response = await client.PostAsJsonAsync(
+            "/api/transfer/batches",
+            new
+            {
+                targetPath,
+                expectedFileCount
+            });
+        response.EnsureSuccessStatusCode();
+
+        using var content = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return content.RootElement.GetProperty("batchId").GetGuid();
     }
 
     private static async Task<HttpResponseMessage> SendHeadRequestAsync(HttpClient client, Uri uploadUrl)
