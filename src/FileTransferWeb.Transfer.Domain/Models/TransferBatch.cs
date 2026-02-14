@@ -68,21 +68,15 @@ public sealed class TransferBatch
         _completedUploads.Add(completedUpload);
     }
 
-    public IReadOnlyList<TransferBatchFinalizePlanItem> BuildFinalizePlan(IReadOnlyCollection<string> existingFileNames)
+    public IReadOnlyList<TransferBatchFinalizePlanItem> BuildFinalizePlan(UploadFileNamePolicy fileNamePolicy)
     {
         EnsureCollectingStatus();
-
-        if (existingFileNames is null)
-        {
-            throw new TransferDomainException("기존 파일 목록이 비어 있습니다.");
-        }
 
         if (_completedUploads.Count == 0)
         {
             throw new TransferDomainException("완료된 업로드가 없어 배치를 마무리할 수 없습니다.");
         }
 
-        var fileNamePolicy = new UploadFileNamePolicy(existingFileNames);
         var planItems = new List<TransferBatchFinalizePlanItem>(_completedUploads.Count);
 
         foreach (var completedUpload in _completedUploads)

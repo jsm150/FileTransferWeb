@@ -1,5 +1,6 @@
 using FileTransferWeb.Transfer.Domain;
 using FileTransferWeb.Transfer.Domain.Exceptions;
+using FileTransferWeb.Transfer.Domain.Policies;
 using FileTransferWeb.Transfer.Domain.Ports;
 using MediatR;
 
@@ -25,7 +26,7 @@ public sealed class FinalizeTransferBatchCommandHandler(
         var existingFileNames = await _targetFileNameReader.GetExistingFileNamesAsync(
             batch.TargetPath,
             cancellationToken);
-        var plan = batch.BuildFinalizePlan(existingFileNames);
+        var plan = batch.BuildFinalizePlan(new UploadFileNamePolicy(existingFileNames));
 
         var fileResults = new List<UploadFileResult>(plan.Count);
         foreach (var item in plan)

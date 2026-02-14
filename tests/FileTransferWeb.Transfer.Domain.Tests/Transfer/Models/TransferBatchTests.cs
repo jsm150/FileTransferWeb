@@ -1,6 +1,7 @@
 using FileTransferWeb.Transfer.Domain;
 using FileTransferWeb.Transfer.Domain.Exceptions;
 using FileTransferWeb.Transfer.Domain.Models;
+using FileTransferWeb.Transfer.Domain.Policies;
 using Xunit;
 
 namespace FileTransferWeb.Transfer.Domain.Tests.Transfer.Models;
@@ -33,7 +34,8 @@ public class TransferBatchTests
         batch.RegisterCompletedUpload(
             TransferBatchUpload.Create("u-2", "report.txt", 20, "text/plain", DateTime.UtcNow));
 
-        var plan = batch.BuildFinalizePlan(["report.txt", "report (1).txt", "report (3).txt"]);
+
+        var plan = batch.BuildFinalizePlan(new UploadFileNamePolicy(["report.txt", "report (1).txt", "report (3).txt"]));
 
         Assert.Equal(2, plan.Count);
         Assert.Equal("report (2).txt", plan[0].StoredFileName);
