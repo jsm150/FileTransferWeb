@@ -17,11 +17,11 @@
             <span class="status-pill status-pill--collecting" data-role="batch-status">수집 중</span>
             <div class="meta-chip">
                 <span class="meta-chip__label">배치 식별자</span>
-                <span class="meta-chip__value">생성 전</span>
+                <span class="meta-chip__value" data-role="batch-id-value">생성 전</span>
             </div>
             <div class="meta-chip">
                 <span class="meta-chip__label">예상 파일 수</span>
-                <span class="meta-chip__value">0건</span>
+                <span class="meta-chip__value" data-role="expected-file-count-value">0건</span>
             </div>
         </div>
     </section>
@@ -59,6 +59,8 @@
                 <button type="button" class="btn-solid btn-solid--primary" disabled data-role="start-upload">업로드 시작</button>
                 <button type="button" class="btn-outline" disabled data-role="reset-upload">초기화</button>
             </div>
+
+            <p class="upload-message" data-role="upload-message">파일과 경로를 선택하면 업로드를 시작할 수 있습니다.</p>
         </article>
 
         <article class="panel-surface panel-stack mobile-summary" data-role="mobile-summary">
@@ -69,10 +71,10 @@
 
             <div class="progress-head">
                 <span class="progress-head__label">전체 진행률</span>
-                <strong class="progress-head__value" data-role="overall-percent">64%</strong>
+                <strong class="progress-head__value" data-role="overall-percent">0%</strong>
             </div>
             <div class="progress-track" aria-label="전체 진행률">
-                <div class="progress-fill" style="width:64%"></div>
+                <div class="progress-fill" data-role="overall-progress-fill" style="width:0%"></div>
             </div>
 
             <div class="summary-grid">
@@ -125,32 +127,17 @@
                 <div class="result-details__summary-meta">
                     <div class="result-chip result-chip--ok">
                         <span class="result-chip__label">성공</span>
-                        <strong class="result-chip__value">6건</strong>
+                        <strong class="result-chip__value" data-role="result-success-count">0건</strong>
                     </div>
                     <div class="result-chip result-chip--warn">
                         <span class="result-chip__label">실패</span>
-                        <strong class="result-chip__value">1건</strong>
+                        <strong class="result-chip__value" data-role="result-fail-count">0건</strong>
                     </div>
                     <span class="result-details__chevron" aria-hidden="true"></span>
                 </div>
             </summary>
             <div class="result-details__body">
-                <ul class="result-list">
-                    <li class="result-item">
-                        <div>
-                            <p class="result-item__name">raw-capture-2026-02-14.zip</p>
-                            <p class="result-item__detail">저장 경로: images/2026/inspection/raw-capture-2026-02-14.zip</p>
-                        </div>
-                        <span class="status-pill status-pill--stored">저장 완료</span>
-                    </li>
-                    <li class="result-item">
-                        <div>
-                            <p class="result-item__name">inspection-report-q1.pdf</p>
-                            <p class="result-item__detail">실패 사유: 파일 저장에 실패했습니다.</p>
-                        </div>
-                        <span class="status-pill status-pill--failed">실패</span>
-                    </li>
-                </ul>
+                <ul class="result-list" data-role="result-list"></ul>
             </div>
         </details>
     </section>
@@ -200,6 +187,7 @@
 </div>
 
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/tus-js-client@latest/dist/tus.min.js"></script>
     <script src="~/js/transfer-file-selection.js" asp-append-version="true"></script>
     <script src="~/js/transfer-path-explorer.js" asp-append-version="true"></script>
 }
