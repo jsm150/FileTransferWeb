@@ -67,6 +67,8 @@
     var MAX_PARALLEL_UPLOADS = 6;
     var LOCAL_STORAGE_CHUNK_KEY = "transfer.upload.chunkSizeMb";
     var LOCAL_STORAGE_PARALLEL_KEY = "transfer.upload.parallelUploads";
+    var BATCH_STATUS_CHECK_INTERVAL_MS = 2000;
+    var MAX_BATCH_STATUS_CHECK_ATTEMPTS = 10;
 
     var uploadSettings = {
       chunkSizeMb: readNumberSetting(
@@ -219,6 +221,12 @@
       window.requestAnimationFrame(function () {
         renderQueued = false;
         render();
+      });
+    }
+
+    function delay(milliseconds) {
+      return new Promise(function (resolve) {
+        window.setTimeout(resolve, milliseconds);
       });
     }
 
@@ -612,6 +620,38 @@
       return response.json();
     }
 
+    async function getTransferBatchStatus(batchId) {
+      var response = await fetch("/api/transfer/batches/" + encodeURIComponent(batchId), {
+        method: "GET"
+      });
+
+      if (!response.ok) {
+        var statusErrorMessage = await readProblemMessage(response, "배치 상태 조회에 실패했습니다.");
+        throw { userMessage: statusErrorMessage };
+      }
+
+      return response.json();
+    }
+
+    function isFinalBatchStatus(status) {
+      return status === 1 || status === 2 || status === 3;
+    }
+
+    async function waitForBatchFinalizedStatus(batchId) {
+      for (var attempt = 1; attempt <= MAX_BATCH_STATUS_CHECK_ATTEMPTS; attempt += 1) {
+        var statusResult = await getTransferBatchStatus(batchId);
+        if (isFinalBatchStatus(statusResult.status)) {
+          return statusResult;
+        }
+
+        if (attempt < MAX_BATCH_STATUS_CHECK_ATTEMPTS) {
+          await delay(BATCH_STATUS_CHECK_INTERVAL_MS);
+        }
+      }
+
+      throw { userMessage: "서버 상태 확인이 지연되고 있습니다. 잠시 후 다시 시도해 주세요." };
+    }
+
     function extractTusErrorMessage(error) {
       if (error && error.originalResponse && typeof error.originalResponse.getBody === "function") {
         try {
@@ -803,18 +843,50 @@
         setUploadMessage("서버 마무리 처리를 진행 중입니다.", "info");
         requestRender();
 
-        var finalizeResult = await finalizeTransferBatch(batch.batchId);
+        var finalizeResult;
+        var recoveredByStatusCheck = false;
+        try {
+          finalizeResult = await finalizeTransferBatch(batch.batchId);
+        } catch (finalizeError) {
+          setUploadMessage("마무리 응답을 받지 못해 배치 상태를 확인하는 중입니다.", "warn");
+          requestRender();
+
+          try {
+            finalizeResult = await waitForBatchFinalizedStatus(batch.batchId);
+            recoveredByStatusCheck = true;
+          } catch (statusCheckError) {
+            var fallbackMessage = statusCheckError && statusCheckError.userMessage
+              ? statusCheckError.userMessage
+              : (finalizeError && finalizeError.userMessage
+                ? finalizeError.userMessage
+                : "서버 마무리 처리에 실패했습니다.");
+            throw { userMessage: fallbackMessage };
+          }
+        }
+
         applyFinalizeResult(finalizeResult);
 
         batchState.phase = "done";
         batchState.finalStatus = finalizeResult.status;
 
         if (finalizeResult.status === 1) {
-          setUploadMessage("업로드와 저장이 완료되었습니다.", "success");
+          if (recoveredByStatusCheck) {
+            setUploadMessage("마무리 응답 지연 후 서버 완료 상태를 확인했습니다.", "success");
+          } else {
+            setUploadMessage("업로드와 저장이 완료되었습니다.", "success");
+          }
         } else if (finalizeResult.status === 2) {
-          setUploadMessage("일부 파일 저장에 실패했습니다. 결과를 확인해 주세요.", "warn");
+          if (recoveredByStatusCheck) {
+            setUploadMessage("마무리 응답 지연 후 서버 상태를 확인했습니다. 일부 파일 저장에 실패했습니다.", "warn");
+          } else {
+            setUploadMessage("일부 파일 저장에 실패했습니다. 결과를 확인해 주세요.", "warn");
+          }
         } else {
-          setUploadMessage("배치 처리에 실패했습니다. 결과를 확인해 주세요.", "error");
+          if (recoveredByStatusCheck) {
+            setUploadMessage("마무리 응답 지연 후 서버 상태를 확인했습니다. 배치 처리에 실패했습니다.", "error");
+          } else {
+            setUploadMessage("배치 처리에 실패했습니다. 결과를 확인해 주세요.", "error");
+          }
         }
       } catch (error) {
         batchState.phase = "done";
