@@ -12,6 +12,7 @@
     <Project Path="src/FileTransferWeb.Transfer.Domain/FileTransferWeb.Transfer.Domain.csproj" />
     <Project Path="src/FileTransferWeb.Transfer.Infrastructure/FileTransferWeb.Transfer.Infrastructure.csproj" />
     <Project Path="tests/FileTransferWeb.Transfer.Domain.Tests/FileTransferWeb.Transfer.Domain.Tests.csproj" />
+    <Project Path="tests/FileTransferWeb.Transfer.Infrastructure.Tests/FileTransferWeb.Transfer.Infrastructure.Tests.csproj" />
   </Folder>
   <Project Path="FileTransferWeb.csproj" />
   <Project Path="src/FileTransferWeb.Domain.Shared/FileTransferWeb.Domain.Shared.csproj" />

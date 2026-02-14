@@ -13,13 +13,30 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        services.AddSingleton(TimeProvider.System);
+
         services.AddOptions<TransferTusOptions>()
             .Bind(configuration.GetSection(TransferTusOptions.SectionName))
             .ValidateOnStart();
 
+        services.AddOptions<TransferBatchMemoryOptions>()
+            .Bind(configuration.GetSection(TransferBatchMemoryOptions.SectionName))
+            .Validate(
+                options => options.SlidingTtlMinutes >= 0,
+                "Transfer:Batch:SlidingTtlMinutes는 0 이상이어야 합니다.")
+            .Validate(
+                options => options.CleanupIntervalSeconds > 0,
+                "Transfer:Batch:CleanupIntervalSeconds는 1 이상이어야 합니다.")
+            .ValidateOnStart();
+
         services.AddSingleton<FileSystemTusStoreFactory>();
 
-        services.AddSingleton<ITransferBatchRepository, InMemoryTransferBatchRepository>();
+        services.AddSingleton<InMemoryTransferBatchRepository>();
+        services.AddSingleton<ITransferBatchRepository>(serviceProvider =>
+            serviceProvider.GetRequiredService<InMemoryTransferBatchRepository>());
+        services.AddSingleton<ITransferBatchExpirationCleaner>(serviceProvider =>
+            serviceProvider.GetRequiredService<InMemoryTransferBatchRepository>());
+        services.AddHostedService<TransferBatchExpirationCleanupHostedService>();
         services.AddSingleton<ITransferCompletedUploadReader, TusCompletedUploadReader>();
         services.AddSingleton<ITransferUploadCreateValidator, TransferUploadCreateValidator>();
         services.AddSingleton<ITransferTargetFileNameReader, FileSystemTransferTargetFileNameReader>();

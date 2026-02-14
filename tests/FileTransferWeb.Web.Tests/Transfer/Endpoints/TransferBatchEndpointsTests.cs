@@ -115,6 +115,22 @@ public class TransferBatchEndpointsTests
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [Fact(DisplayName = "만료된 배치 식별자는 조회와 완료에서 400을 반환한다")]
+    public async Task BatchEndpoints_ReturnBadRequest_WhenBatchExpired()
+    {
+        using var roots = new TemporaryRoots();
+        await using var factory = new TransferApiFactory(roots.UploadRoot, roots.TusTempRoot, batchSlidingTtlMinutes: 0);
+        using var client = factory.CreateClient();
+
+        var batchId = await CreateBatchAsync(client, "images/expired", 1);
+
+        var statusResponse = await client.GetAsync($"/api/transfer/batches/{batchId}");
+        var completeResponse = await client.PostAsync($"/api/transfer/batches/{batchId}/complete", null);
+
+        Assert.Equal(HttpStatusCode.BadRequest, statusResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, completeResponse.StatusCode);
+    }
+
     private static async Task<Guid> CreateBatchAsync(HttpClient client, string targetPath, int expectedFileCount)
     {
         var response = await client.PostAsJsonAsync(
@@ -170,10 +186,14 @@ public class TransferBatchEndpointsTests
                 $"{entry.Key} {Convert.ToBase64String(Encoding.UTF8.GetBytes(entry.Value))}"));
     }
 
-    private sealed class TransferApiFactory(string uploadRoot, string tusTempRoot) : WebApplicationFactory<Program>
+    private sealed class TransferApiFactory(
+        string uploadRoot,
+        string tusTempRoot,
+        int batchSlidingTtlMinutes = 1440) : WebApplicationFactory<Program>
     {
         private readonly string _uploadRoot = uploadRoot;
         private readonly string _tusTempRoot = tusTempRoot;
+        private readonly int _batchSlidingTtlMinutes = batchSlidingTtlMinutes;
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
@@ -186,7 +206,9 @@ public class TransferBatchEndpointsTests
                         ["Storage:UploadRoot"] = _uploadRoot,
                         ["Transfer:Tus:TempRoot"] = _tusTempRoot,
                         ["Transfer:Tus:ExpirationHours"] = "24",
-                        ["Transfer:Tus:MaxSizeBytes"] = "10485760"
+                        ["Transfer:Tus:MaxSizeBytes"] = "10485760",
+                        ["Transfer:Batch:SlidingTtlMinutes"] = _batchSlidingTtlMinutes.ToString(),
+                        ["Transfer:Batch:CleanupIntervalSeconds"] = "300"
                     });
             });
         }
