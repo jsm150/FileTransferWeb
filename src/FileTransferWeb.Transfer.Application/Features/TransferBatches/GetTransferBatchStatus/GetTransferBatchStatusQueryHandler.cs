@@ -24,6 +24,13 @@ public sealed class GetTransferBatchStatusQueryHandler(
             batch.CompletedUploads.Count,
             batch.Status,
             batch.CreatedAtUtc,
-            batch.FinalizedAtUtc);
+            batch.FinalizedAtUtc,
+            batch.FinalizeResults.Select(
+                x => new GetTransferBatchStatusFileResult(
+                    x.OriginalFileName,
+                    x.StoredFileName,
+                    x.RelativePath,
+                    x.SizeBytes,
+                    x.FailureReason)).ToArray());
     }
 }

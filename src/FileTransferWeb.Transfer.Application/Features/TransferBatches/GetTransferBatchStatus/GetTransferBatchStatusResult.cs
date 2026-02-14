@@ -9,4 +9,12 @@ public sealed record GetTransferBatchStatusResult(
     int CompletedUploadCount,
     TransferBatchStatus Status,
     DateTime CreatedAtUtc,
-    DateTime? FinalizedAtUtc);
+    DateTime? FinalizedAtUtc,
+    IReadOnlyList<GetTransferBatchStatusFileResult> Files);
+
+public sealed record GetTransferBatchStatusFileResult(
+    string OriginalFileName,
+    string? StoredFileName,
+    string? RelativePath,
+    long SizeBytes,
+    string? FailureReason);

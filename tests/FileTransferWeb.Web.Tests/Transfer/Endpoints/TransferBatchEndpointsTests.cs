@@ -53,6 +53,7 @@ public class TransferBatchEndpointsTests
         Assert.Equal(batchId, root.GetProperty("batchId").GetGuid());
         Assert.Equal(0, root.GetProperty("status").GetInt32());
         Assert.Equal(0, root.GetProperty("completedUploadCount").GetInt32());
+        Assert.Equal(0, root.GetProperty("files").GetArrayLength());
     }
 
     [Fact(DisplayName = "배치 완료 호출 시 성공 조건에 따라 Completed 상태를 반환한다")]
@@ -63,7 +64,7 @@ public class TransferBatchEndpointsTests
         using var client = factory.CreateClient();
 
         var batchId = await CreateBatchAsync(client, "images/completed", 1);
-        await UploadSingleTusFileAsync(
+        _ = await UploadSingleTusFileAsync(
             client,
             batchId,
             "images/completed",
@@ -77,6 +78,20 @@ public class TransferBatchEndpointsTests
         var root = content.RootElement;
         Assert.Equal(1, root.GetProperty("status").GetInt32());
         Assert.Equal(1, root.GetProperty("completedUploadCount").GetInt32());
+
+        var statusResponse = await client.GetAsync($"/api/transfer/batches/{batchId}");
+        Assert.Equal(HttpStatusCode.OK, statusResponse.StatusCode);
+
+        using var statusContent = JsonDocument.Parse(await statusResponse.Content.ReadAsStringAsync());
+        var statusRoot = statusContent.RootElement;
+        Assert.Equal(1, statusRoot.GetProperty("status").GetInt32());
+        Assert.Equal(1, statusRoot.GetProperty("completedUploadCount").GetInt32());
+        Assert.Equal(1, statusRoot.GetProperty("files").GetArrayLength());
+
+        var fileResult = statusRoot.GetProperty("files")[0];
+        Assert.Equal("photo.txt", fileResult.GetProperty("originalFileName").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(fileResult.GetProperty("storedFileName").GetString()));
+        Assert.True(fileResult.GetProperty("failureReason").ValueKind is JsonValueKind.Null);
     }
 
     [Fact(DisplayName = "배치 완료 호출 시 일부 파일만 도착했으면 PartiallyCompleted 상태를 반환한다")]
@@ -87,12 +102,20 @@ public class TransferBatchEndpointsTests
         using var client = factory.CreateClient();
 
         var batchId = await CreateBatchAsync(client, "images/partial", 2);
-        await UploadSingleTusFileAsync(
+        _ = await UploadSingleTusFileAsync(
             client,
             batchId,
             "images/partial",
-            "photo.txt",
-            Encoding.UTF8.GetBytes("partial-content"));
+            "photo-ok.txt",
+            Encoding.UTF8.GetBytes("partial-content-ok"));
+
+        var failedUploadId = await UploadSingleTusFileAsync(
+            client,
+            batchId,
+            "images/partial",
+            "photo-fail.txt",
+            Encoding.UTF8.GetBytes("partial-content-fail"));
+        DeleteTusUploadArtifacts(roots.TusTempRoot, failedUploadId);
 
         var response = await client.PostAsync($"/api/transfer/batches/{batchId}/complete", null);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -100,7 +123,20 @@ public class TransferBatchEndpointsTests
         using var content = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var root = content.RootElement;
         Assert.Equal(2, root.GetProperty("status").GetInt32());
-        Assert.Equal(1, root.GetProperty("completedUploadCount").GetInt32());
+        Assert.Equal(2, root.GetProperty("completedUploadCount").GetInt32());
+
+        var statusResponse = await client.GetAsync($"/api/transfer/batches/{batchId}");
+        Assert.Equal(HttpStatusCode.OK, statusResponse.StatusCode);
+
+        using var statusContent = JsonDocument.Parse(await statusResponse.Content.ReadAsStringAsync());
+        var statusRoot = statusContent.RootElement;
+        Assert.Equal(2, statusRoot.GetProperty("status").GetInt32());
+        Assert.Equal(2, statusRoot.GetProperty("completedUploadCount").GetInt32());
+        Assert.Equal(2, statusRoot.GetProperty("files").GetArrayLength());
+
+        var files = statusRoot.GetProperty("files").EnumerateArray().ToArray();
+        Assert.Single(files, IsSucceededFileResult);
+        Assert.Single(files, IsFailedFileResult);
     }
 
     [Fact(DisplayName = "존재하지 않는 배치 식별자는 400을 반환한다")]
@@ -146,7 +182,7 @@ public class TransferBatchEndpointsTests
         return content.RootElement.GetProperty("batchId").GetGuid();
     }
 
-    private static async Task UploadSingleTusFileAsync(
+    private static async Task<string> UploadSingleTusFileAsync(
         HttpClient client,
         Guid batchId,
         string targetPath,
@@ -167,6 +203,7 @@ public class TransferBatchEndpointsTests
         createResponse.EnsureSuccessStatusCode();
 
         var uploadUrl = createResponse.Headers.Location!;
+        var uploadId = uploadUrl.ToString().TrimEnd('/').Split('/').Last();
 
         var patchRequest = new HttpRequestMessage(HttpMethod.Patch, uploadUrl);
         patchRequest.Headers.Add("Tus-Resumable", "1.0.0");
@@ -176,6 +213,48 @@ public class TransferBatchEndpointsTests
 
         var patchResponse = await client.SendAsync(patchRequest);
         patchResponse.EnsureSuccessStatusCode();
+
+        return uploadId;
+    }
+
+    private static bool IsSucceededFileResult(JsonElement fileResult)
+    {
+        return fileResult.GetProperty("failureReason").ValueKind is JsonValueKind.Null;
+    }
+
+    private static bool IsFailedFileResult(JsonElement fileResult)
+    {
+        var failureReason = fileResult.GetProperty("failureReason");
+        return failureReason.ValueKind is JsonValueKind.String
+               && !string.IsNullOrWhiteSpace(failureReason.GetString());
+    }
+
+    private static void DeleteTusUploadArtifacts(string tusTempRoot, string uploadId)
+    {
+        if (string.IsNullOrWhiteSpace(uploadId) || !Directory.Exists(tusTempRoot))
+        {
+            return;
+        }
+
+        foreach (var filePath in Directory.EnumerateFiles(tusTempRoot, "*", SearchOption.AllDirectories))
+        {
+            if (Path.GetFileName(filePath).Contains(uploadId, StringComparison.Ordinal))
+            {
+                File.Delete(filePath);
+            }
+        }
+
+        var directories = Directory.EnumerateDirectories(tusTempRoot, "*", SearchOption.AllDirectories)
+            .Where(path => Path.GetFileName(path).Contains(uploadId, StringComparison.Ordinal))
+            .OrderByDescending(path => path.Length);
+
+        foreach (var directoryPath in directories)
+        {
+            if (Directory.Exists(directoryPath))
+            {
+                Directory.Delete(directoryPath, recursive: true);
+            }
+        }
     }
 
     private static string BuildMetadata(params (string Key, string Value)[] entries)
