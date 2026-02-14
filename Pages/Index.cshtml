@@ -1,10 +1,205 @@
 ﻿@page
 @model IndexModel
 @{
-    ViewData["Title"] = "Home page";
+    ViewData["Title"] = "파일 전송 대시보드";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="transfer-dashboard" data-role="transfer-dashboard">
+    <section class="transfer-hero panel-surface" aria-label="전송 개요">
+        <div class="transfer-hero__text">
+            <p class="transfer-eyebrow">파일 전송 센터</p>
+            <h1 class="transfer-title">대용량 배치 업로드 대시보드</h1>
+            <p class="transfer-subtitle">
+                다수 파일 업로드를 시작하기 전 경로, 파일 구성, 진행 계획을 한 화면에서 점검할 수 있습니다.
+            </p>
+        </div>
+        <div class="transfer-hero__meta">
+            <span class="status-pill status-pill--collecting" data-role="batch-status">수집 중</span>
+            <div class="meta-chip">
+                <span class="meta-chip__label">배치 식별자</span>
+                <span class="meta-chip__value">생성 전</span>
+            </div>
+            <div class="meta-chip">
+                <span class="meta-chip__label">예상 파일 수</span>
+                <span class="meta-chip__value">0건</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="transfer-grid transfer-grid--top" aria-label="업로드 설정 및 진행률">
+        <article class="panel-surface panel-stack" data-role="upload-settings">
+            <header class="panel-header">
+                <h2 class="panel-title">업로드 설정</h2>
+                <p class="panel-description">업로드 경로와 파일 묶음을 지정합니다.</p>
+            </header>
+
+            <div class="form-stack">
+                <label class="field-label" for="target-path">대상 경로</label>
+                <div class="target-path-row">
+                    <input id="target-path"
+                           class="field-input"
+                           data-role="target-path"
+                           type="text"
+                           value=""
+                           placeholder="예: images/2026/reports" />
+                    <button type="button" class="btn-outline btn-browse-path" data-role="open-path-explorer">찾아보기</button>
+                </div>
+            </div>
+
+            <div class="form-stack">
+                <span class="field-label">파일 선택</span>
+                <div class="file-picker" data-role="file-picker">
+                    <button type="button" class="btn-solid" data-role="pick-files">파일 선택</button>
+                    <span class="file-picker__hint" data-role="file-picker-hint">선택된 파일 없음</span>
+                    <input type="file" multiple hidden data-role="file-input" />
+                </div>
+            </div>
+
+            <div class="action-row">
+                <button type="button" class="btn-solid btn-solid--primary" disabled data-role="start-upload">업로드 시작</button>
+                <button type="button" class="btn-outline" disabled data-role="reset-upload">초기화</button>
+            </div>
+        </article>
+
+        <article class="panel-surface panel-stack mobile-summary" data-role="mobile-summary">
+            <header class="panel-header">
+                <h2 class="panel-title">전송 진행률</h2>
+                <p class="panel-description">정적 샘플 화면입니다. 실제 값 연결은 다음 단계에서 진행됩니다.</p>
+            </header>
+
+            <div class="progress-head">
+                <span class="progress-head__label">전체 진행률</span>
+                <strong class="progress-head__value" data-role="overall-percent">64%</strong>
+            </div>
+            <div class="progress-track" aria-label="전체 진행률">
+                <div class="progress-fill" style="width:64%"></div>
+            </div>
+
+            <div class="summary-grid">
+                <div class="summary-tile">
+                    <span class="summary-tile__label">총 파일</span>
+                    <strong class="summary-tile__value" data-role="selected-count">0건</strong>
+                </div>
+                <div class="summary-tile">
+                    <span class="summary-tile__label">완료 파일</span>
+                    <strong class="summary-tile__value" data-role="completed-count">0건</strong>
+                </div>
+                <div class="summary-tile">
+                    <span class="summary-tile__label">전송 용량</span>
+                    <strong class="summary-tile__value" data-role="selected-size">0 B</strong>
+                </div>
+                <div class="summary-tile">
+                    <span class="summary-tile__label">예상 남은 시간</span>
+                    <strong class="summary-tile__value">대기 중</strong>
+                </div>
+            </div>
+        </article>
+    </section>
+
+    <section class="transfer-grid transfer-grid--bottom" aria-label="파일 상태 및 완료 결과">
+        <article class="panel-surface panel-stack" data-role="file-list">
+            <header class="panel-header file-list-header">
+                <div>
+                    <h2 class="panel-title">파일 전송 목록</h2>
+                    <p class="panel-description">파일별 진행률과 상태를 확인합니다.</p>
+                </div>
+                <div class="file-list-badges" aria-label="파일 상태 개수">
+                    <span class="count-pill" data-role="list-total">전체 0</span>
+                    <span class="count-pill count-pill--active" data-role="list-uploading">업로드 중 0</span>
+                    <span class="count-pill count-pill--danger" data-role="list-failed">실패 0</span>
+                </div>
+            </header>
+
+            <div class="file-list-container" data-role="file-list-container">
+                <ul class="file-list" data-role="selected-file-list"></ul>
+                <p class="file-empty-state" data-role="file-empty">선택된 파일이 없습니다.</p>
+            </div>
+        </article>
+
+        <details class="panel-surface result-details" data-role="finalize-result">
+            <summary class="result-details__summary">
+                <div class="result-details__summary-text">
+                    <h2 class="panel-title">배치 완료 결과</h2>
+                    <p class="panel-description">필요할 때 펼쳐서 저장 결과를 확인합니다.</p>
+                </div>
+                <div class="result-details__summary-meta">
+                    <div class="result-chip result-chip--ok">
+                        <span class="result-chip__label">성공</span>
+                        <strong class="result-chip__value">6건</strong>
+                    </div>
+                    <div class="result-chip result-chip--warn">
+                        <span class="result-chip__label">실패</span>
+                        <strong class="result-chip__value">1건</strong>
+                    </div>
+                    <span class="result-details__chevron" aria-hidden="true"></span>
+                </div>
+            </summary>
+            <div class="result-details__body">
+                <ul class="result-list">
+                    <li class="result-item">
+                        <div>
+                            <p class="result-item__name">raw-capture-2026-02-14.zip</p>
+                            <p class="result-item__detail">저장 경로: images/2026/inspection/raw-capture-2026-02-14.zip</p>
+                        </div>
+                        <span class="status-pill status-pill--stored">저장 완료</span>
+                    </li>
+                    <li class="result-item">
+                        <div>
+                            <p class="result-item__name">inspection-report-q1.pdf</p>
+                            <p class="result-item__detail">실패 사유: 파일 저장에 실패했습니다.</p>
+                        </div>
+                        <span class="status-pill status-pill--failed">실패</span>
+                    </li>
+                </ul>
+            </div>
+        </details>
+    </section>
 </div>
+
+<div class="path-explorer-overlay"
+     data-role="path-explorer-modal"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="path-explorer-title"
+     hidden>
+    <div class="path-explorer">
+        <header class="path-explorer__header">
+            <div>
+                <p class="path-explorer__eyebrow">대상 경로 탐색기</p>
+                <h2 id="path-explorer-title" class="path-explorer__title">업로드 폴더 선택</h2>
+            </div>
+            <button type="button" class="path-explorer__close" data-role="close-path-explorer" aria-label="탐색기 닫기">닫기</button>
+        </header>
+
+        <div class="path-explorer__body">
+            <div class="path-current">
+                <span class="path-current__label">현재 경로</span>
+                <strong class="path-current__value" data-role="path-current-text">/</strong>
+            </div>
+
+            <nav class="path-breadcrumb" data-role="path-breadcrumb" aria-label="경로 브레드크럼"></nav>
+
+            <div class="path-feedback" data-role="path-loading" hidden>폴더 목록을 불러오는 중입니다.</div>
+            <div class="path-feedback path-feedback--error" data-role="path-error" hidden></div>
+            <div class="path-actions" data-role="path-recovery-actions" hidden>
+                <button type="button" class="btn-outline" data-role="retry-path-load">다시 시도</button>
+                <button type="button" class="btn-outline" data-role="go-path-root">루트로 이동</button>
+            </div>
+
+            <div class="path-list-wrap" data-role="directory-list-wrap">
+                <ul class="path-list" data-role="directory-list" aria-label="디렉터리 목록"></ul>
+                <p class="path-feedback" data-role="path-empty" hidden>표시할 하위 폴더가 없습니다.</p>
+            </div>
+        </div>
+
+        <footer class="path-explorer__footer">
+            <button type="button" class="btn-solid btn-solid--primary" data-role="select-current-path">현재 폴더 선택</button>
+            <button type="button" class="btn-outline" data-role="cancel-path-explorer">취소</button>
+        </footer>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/transfer-file-selection.js" asp-append-version="true"></script>
+    <script src="~/js/transfer-path-explorer.js" asp-append-version="true"></script>
+}

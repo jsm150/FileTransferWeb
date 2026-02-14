@@ -14,7 +14,9 @@
       "launchBrowser": true,
       "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}",
       "environmentVariables": {
-        "ASPNETCORE_HTTP_PORTS": "8080"
+        "ASPNETCORE_HTTP_PORTS": "8080",
+        "Storage__UploadRoot": "/tmp/filetransfer/uploads",
+        "Transfer__Tus__TempRoot": "/tmp/filetransfer/uploads/.tus-temp"
       },
       "publishAllPorts": true,
       "useSSL": false
