@@ -382,12 +382,6 @@ body {
   gap: 0.45rem;
 }
 
-.upload-options-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--td-space-2);
-}
-
 .field-label {
   font-size: 0.8rem;
   font-weight: 600;
@@ -419,17 +413,6 @@ body {
   outline: none;
   border-color: var(--td-primary);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
-}
-
-.field-input--numeric {
-  min-height: 44px;
-}
-
-.field-help {
-  margin: 0;
-  font-size: 0.78rem;
-  color: var(--td-text-muted);
-  line-height: 1.45;
 }
 
 .target-path-row {
@@ -1341,10 +1324,6 @@ body.path-explorer-open {
   }
 
   .target-path-row {
-    grid-template-columns: 1fr;
-  }
-
-  .upload-options-grid {
     grid-template-columns: 1fr;
   }
 
