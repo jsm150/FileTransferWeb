@@ -55,6 +55,35 @@
                 </div>
             </div>
 
+            <div class="form-stack">
+                <span class="field-label">전송 고급 설정</span>
+                <div class="upload-options-grid">
+                    <label class="form-stack" for="chunk-size-mb">
+                        <span class="field-label">청크 크기 (MB)</span>
+                        <input id="chunk-size-mb"
+                               class="field-input field-input--numeric"
+                               data-role="chunk-size-mb"
+                               type="number"
+                               min="1"
+                               max="32"
+                               step="1"
+                               value="5" />
+                    </label>
+                    <label class="form-stack" for="parallel-uploads">
+                        <span class="field-label">동시 업로드 파일 수</span>
+                        <input id="parallel-uploads"
+                               class="field-input field-input--numeric"
+                               data-role="parallel-uploads"
+                               type="number"
+                               min="1"
+                               max="6"
+                               step="1"
+                               value="3" />
+                    </label>
+                </div>
+                <p class="field-help" data-role="upload-setting-hint">청크 5MB, 동시 3개로 업로드합니다.</p>
+            </div>
+
             <div class="action-row">
                 <button type="button" class="btn-solid btn-solid--primary" disabled data-role="start-upload">업로드 시작</button>
                 <button type="button" class="btn-outline" disabled data-role="reset-upload">초기화</button>

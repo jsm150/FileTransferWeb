@@ -29,6 +29,9 @@
     var resultFailCount = document.querySelector("[data-role='result-fail-count']");
     var resultList = document.querySelector("[data-role='result-list']");
     var finalizeResultDetails = document.querySelector("[data-role='finalize-result']");
+    var chunkSizeInput = document.querySelector("[data-role='chunk-size-mb']");
+    var parallelUploadsInput = document.querySelector("[data-role='parallel-uploads']");
+    var uploadSettingHint = document.querySelector("[data-role='upload-setting-hint']");
 
     if (!targetPathInput || !pickFilesButton || !fileInput || !fileList || !fileEmpty || !resetButton || !startUploadButton) {
       return;
@@ -56,6 +59,35 @@
     };
 
     var renderQueued = false;
+    var DEFAULT_CHUNK_SIZE_MB = 5;
+    var DEFAULT_PARALLEL_UPLOADS = 3;
+    var MIN_CHUNK_MB = 1;
+    var MAX_CHUNK_MB = 32;
+    var MIN_PARALLEL_UPLOADS = 1;
+    var MAX_PARALLEL_UPLOADS = 6;
+    var LOCAL_STORAGE_CHUNK_KEY = "transfer.upload.chunkSizeMb";
+    var LOCAL_STORAGE_PARALLEL_KEY = "transfer.upload.parallelUploads";
+
+    var uploadSettings = {
+      chunkSizeMb: readNumberSetting(
+        LOCAL_STORAGE_CHUNK_KEY,
+        DEFAULT_CHUNK_SIZE_MB,
+        sanitizeChunkSizeMb),
+      parallelUploads: readNumberSetting(
+        LOCAL_STORAGE_PARALLEL_KEY,
+        DEFAULT_PARALLEL_UPLOADS,
+        sanitizeParallelUploads),
+      chunkSizeBytes: 0
+    };
+
+    uploadSettings.chunkSizeBytes = toChunkBytes(uploadSettings.chunkSizeMb);
+    if (chunkSizeInput) {
+      chunkSizeInput.value = String(uploadSettings.chunkSizeMb);
+    }
+
+    if (parallelUploadsInput) {
+      parallelUploadsInput.value = String(uploadSettings.parallelUploads);
+    }
 
     function getFileKey(file) {
       return file.name + "::" + file.size + "::" + file.lastModified;
@@ -77,6 +109,82 @@
 
       var fixed = value >= 10 || index === 0 ? 0 : 1;
       return value.toFixed(fixed) + " " + units[index];
+    }
+
+    function sanitizeInteger(value, min, max, fallback) {
+      var parsed = Number.parseInt(value, 10);
+      if (!Number.isFinite(parsed)) {
+        parsed = fallback;
+      }
+
+      if (parsed < min) {
+        parsed = min;
+      }
+
+      if (parsed > max) {
+        parsed = max;
+      }
+
+      return parsed;
+    }
+
+    function sanitizeChunkSizeMb(value) {
+      return sanitizeInteger(value, MIN_CHUNK_MB, MAX_CHUNK_MB, DEFAULT_CHUNK_SIZE_MB);
+    }
+
+    function sanitizeParallelUploads(value) {
+      return sanitizeInteger(value, MIN_PARALLEL_UPLOADS, MAX_PARALLEL_UPLOADS, DEFAULT_PARALLEL_UPLOADS);
+    }
+
+    function toChunkBytes(chunkSizeMb) {
+      return chunkSizeMb * 1024 * 1024;
+    }
+
+    function readNumberSetting(storageKey, fallbackValue, sanitizer) {
+      try {
+        var rawValue = window.localStorage.getItem(storageKey);
+        if (rawValue === null) {
+          return fallbackValue;
+        }
+
+        return sanitizer(rawValue);
+      } catch (_ignored) {
+        return fallbackValue;
+      }
+    }
+
+    function writeNumberSetting(storageKey, value) {
+      try {
+        window.localStorage.setItem(storageKey, String(value));
+      } catch (_ignored) {
+      }
+    }
+
+    function updateUploadSettingHint() {
+      if (!uploadSettingHint) {
+        return;
+      }
+
+      uploadSettingHint.textContent =
+        "청크 " + uploadSettings.chunkSizeMb + "MB, 동시 " + uploadSettings.parallelUploads + "개로 업로드합니다.";
+    }
+
+    function applyUploadSettings(chunkSizeMbValue, parallelUploadsValue) {
+      uploadSettings.chunkSizeMb = sanitizeChunkSizeMb(chunkSizeMbValue);
+      uploadSettings.parallelUploads = sanitizeParallelUploads(parallelUploadsValue);
+      uploadSettings.chunkSizeBytes = toChunkBytes(uploadSettings.chunkSizeMb);
+
+      if (chunkSizeInput) {
+        chunkSizeInput.value = String(uploadSettings.chunkSizeMb);
+      }
+
+      if (parallelUploadsInput) {
+        parallelUploadsInput.value = String(uploadSettings.parallelUploads);
+      }
+
+      writeNumberSetting(LOCAL_STORAGE_CHUNK_KEY, uploadSettings.chunkSizeMb);
+      writeNumberSetting(LOCAL_STORAGE_PARALLEL_KEY, uploadSettings.parallelUploads);
+      updateUploadSettingHint();
     }
 
     function normalizePath(path) {
@@ -339,6 +447,14 @@
         openPathExplorerButton.disabled = !canEdit;
       }
 
+      if (chunkSizeInput) {
+        chunkSizeInput.disabled = !canEdit;
+      }
+
+      if (parallelUploadsInput) {
+        parallelUploadsInput.disabled = !canEdit;
+      }
+
       pickFilesButton.disabled = !canEdit;
       resetButton.disabled = !canEdit || !hasFiles;
 
@@ -423,6 +539,8 @@
         );
         uploadMessage.classList.add("upload-message--" + uiState.tone);
       }
+
+      updateUploadSettingHint();
 
       if (batchState.phase === "idle") {
         setBatchStatusPill("수집 중", "status-pill--collecting");
@@ -511,7 +629,7 @@
       return "파일 업로드에 실패했습니다.";
     }
 
-    function uploadSingleFile(item, targetPath, batchId) {
+    function uploadSingleFile(item, targetPath, batchId, chunkSizeBytes) {
       return new Promise(function (resolve) {
         item.status = "업로드중";
         item.errorMessage = "";
@@ -520,7 +638,7 @@
 
         var upload = new tus.Upload(item.file, {
           endpoint: "/api/transfer/uploads",
-          chunkSize: 5 * 1024 * 1024,
+          chunkSize: chunkSizeBytes,
           retryDelays: [0, 1000, 3000, 5000],
           metadata: {
             targetPath: targetPath,
@@ -563,7 +681,7 @@
       });
     }
 
-    async function runUploadQueue(targetPath, batchId, parallelCount) {
+    async function runUploadQueue(targetPath, batchId, parallelCount, chunkSizeBytes) {
       var items = Array.from(uploadItems.values());
       var nextIndex = 0;
 
@@ -576,7 +694,7 @@
             return;
           }
 
-          await uploadSingleFile(items[currentIndex], targetPath, batchId);
+          await uploadSingleFile(items[currentIndex], targetPath, batchId, chunkSizeBytes);
         }
       }
 
@@ -655,6 +773,8 @@
       }
 
       var targetPath = resolveRequestTargetPath(targetPathInput.value);
+      var chunkSizeBytes = uploadSettings.chunkSizeBytes;
+      var parallelUploads = uploadSettings.parallelUploads;
 
       if (selectedFiles.size === 0) {
         setUploadMessage("업로드할 파일을 선택해 주세요.", "error");
@@ -677,7 +797,7 @@
         setUploadMessage("파일 업로드를 시작합니다.", "info");
         requestRender();
 
-        await runUploadQueue(targetPath, batch.batchId, 2);
+        await runUploadQueue(targetPath, batch.batchId, parallelUploads, chunkSizeBytes);
 
         batchState.phase = "finalizing";
         setUploadMessage("서버 마무리 처리를 진행 중입니다.", "info");
@@ -762,6 +882,30 @@
       requestRender();
     });
 
+    if (chunkSizeInput) {
+      chunkSizeInput.addEventListener("input", function () {
+        applyUploadSettings(chunkSizeInput.value, uploadSettings.parallelUploads);
+        requestRender();
+      });
+
+      chunkSizeInput.addEventListener("change", function () {
+        applyUploadSettings(chunkSizeInput.value, uploadSettings.parallelUploads);
+        requestRender();
+      });
+    }
+
+    if (parallelUploadsInput) {
+      parallelUploadsInput.addEventListener("input", function () {
+        applyUploadSettings(uploadSettings.chunkSizeMb, parallelUploadsInput.value);
+        requestRender();
+      });
+
+      parallelUploadsInput.addEventListener("change", function () {
+        applyUploadSettings(uploadSettings.chunkSizeMb, parallelUploadsInput.value);
+        requestRender();
+      });
+    }
+
     startUploadButton.addEventListener("click", function () {
       startUploadWorkflow();
     });
@@ -815,6 +959,7 @@
     });
 
     rebuildUploadItemsFromSelection();
+    applyUploadSettings(uploadSettings.chunkSizeMb, uploadSettings.parallelUploads);
 
     if (!tusClientAvailable) {
       setUploadMessage("업로드 라이브러리를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.", "error");
