@@ -1,13 +1,33 @@
 services:
   filetransferweb:
-    image: jsm150/filetransferweb:1.0
+    image: jsm150/filetransferweb:1.0.1
     container_name: filetransferweb
     user: "0:0"
     restart: unless-stopped
     ports:
       - "80:8080"
     environment:
+      # 업로드 최종 저장 루트(절대 경로). 컨테이너 내부 경로로 지정해야 합니다.
       Storage__UploadRoot: "/tmp/filetransfer/uploads"
+
+      # tus 청크 임시 파일 저장 경로(절대 경로).
       Transfer__Tus__TempRoot: "/tmp/filetransfer/uploads/.tus-temp"
+
+      # --- 아래 항목은 현재 appsettings 기본값을 사용 중이며, 필요 시 주석 해제해서 덮어쓸 수 있습니다. ---
+      # tus 임시 업로드 만료 시간(시간 단위, 기본값: 24)
+      # Transfer__Tus__ExpirationHours: "24"
+      # tus 파일 최대 크기(바이트 단위, 기본값: 10737418240 = 10GB)
+      # Transfer__Tus__MaxSizeBytes: "10737418240"
+
+      # 인메모리 배치 슬라이딩 TTL(분 단위, 기본값: 60)
+      # Transfer__Batch__SlidingTtlMinutes: "60"
+      # 만료 배치 정리 주기(초 단위, 기본값: 300)
+      # Transfer__Batch__CleanupIntervalSeconds: "300"
+
+      # --- ASP.NET Core 런타임 환경변수(현재는 미사용/기본값 사용) ---
+      # 앱 수신 포트 강제 지정이 필요할 때만 사용합니다.
+      # ASPNETCORE_HTTP_PORTS: "8080"
+      # 런타임 환경 지정이 필요할 때만 사용합니다. (미지정 시 보통 Production)
+      # ASPNETCORE_ENVIRONMENT: "Production"
     volumes:
       - ./data/uploads:/tmp/filetransfer/uploads
