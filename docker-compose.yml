@@ -1,0 +1,13 @@
+services:
+  filetransferweb:
+    image: jsm150/filetransferweb:1.0
+    container_name: filetransferweb
+    user: "0:0"
+    restart: unless-stopped
+    ports:
+      - "80:8080"
+    environment:
+      Storage__UploadRoot: "/tmp/filetransfer/uploads"
+      Transfer__Tus__TempRoot: "/tmp/filetransfer/uploads/.tus-temp"
+    volumes:
+      - ./data/uploads:/tmp/filetransfer/uploads
